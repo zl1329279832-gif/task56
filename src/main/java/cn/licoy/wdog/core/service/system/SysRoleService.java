@@ -2,10 +2,13 @@ package cn.licoy.wdog.core.service.system;
 
 import cn.licoy.wdog.common.service.BaseService;
 import cn.licoy.wdog.core.dto.system.role.FindRoleDTO;
+import cn.licoy.wdog.core.dto.system.role.PermissionChangeDTO;
 import cn.licoy.wdog.core.dto.system.role.RoleAddDTO;
 import cn.licoy.wdog.core.dto.system.role.RoleUpdateDTO;
 import cn.licoy.wdog.core.entity.system.SysRole;
 import cn.licoy.wdog.core.entity.system.SysUser;
+import cn.licoy.wdog.core.vo.system.PermissionChangePreviewVO;
+import cn.licoy.wdog.core.vo.system.PermissionChangeResultVO;
 import com.baomidou.mybatisplus.plugins.Page;
 import com.baomidou.mybatisplus.service.IService;
 
@@ -28,4 +31,25 @@ public interface SysRoleService extends IService<SysRole>,
      * @param out 是否清空session
      */
     void updateCache(SysRole role,Boolean author, Boolean out);
+
+    /**
+     * 预览权限变更影响
+     * @param dto 权限变更请求
+     * @return 影响预览
+     */
+    PermissionChangePreviewVO previewPermissionChange(PermissionChangeDTO dto);
+
+    /**
+     * 应用权限变更并刷新缓存
+     * @param dto 权限变更请求
+     * @return 变更结果
+     */
+    PermissionChangeResultVO applyPermissionChange(PermissionChangeDTO dto);
+
+    /**
+     * 查询权限变更刷新结果
+     * @param changeId 变更ID
+     * @return 变更结果
+     */
+    PermissionChangeResultVO getPermissionChangeResult(String changeId);
 }
