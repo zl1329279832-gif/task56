@@ -4,9 +4,13 @@ import cn.licoy.wdog.common.bean.ResponseCode;
 import cn.licoy.wdog.common.exception.RequestException;
 import cn.licoy.wdog.core.dto.system.resource.ResourceDTO;
 import cn.licoy.wdog.core.entity.system.SysResource;
+import cn.licoy.wdog.core.entity.system.SysRoleResource;
+import cn.licoy.wdog.core.entity.system.SysUserRole;
 import cn.licoy.wdog.core.mapper.system.SysResourceMapper;
+import cn.licoy.wdog.core.mapper.system.SysRolePermissionMapper;
 import cn.licoy.wdog.core.service.global.ShiroService;
 import cn.licoy.wdog.core.service.system.SysResourceService;
+import cn.licoy.wdog.core.service.system.SysUserRoleService;
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.baomidou.mybatisplus.service.impl.ServiceImpl;
 import org.springframework.beans.BeanUtils;
@@ -19,6 +23,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * @author Licoy
@@ -31,6 +37,12 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
 
     @Autowired
     private ShiroService shiroService;
+
+    @Autowired
+    private SysRolePermissionMapper rolePermissionMapper;
+
+    @Autowired
+    private SysUserRoleService userRoleService;
 
     @Override
     public List<SysResource> list() {
@@ -63,6 +75,7 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
         BeanUtils.copyProperties(dto,resource);
         this.updateById(resource);
         shiroService.reloadPerms();
+        clearCacheForResourceUsers(id);
     }
 
     @Override
@@ -71,6 +84,10 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
                 .eq("id",id).setSqlSelect("id"));
         if(resource==null)
             throw RequestException.fail("删除失败，不存在ID为"+id+"的资源");
+        // 先清除受影响用户的权限缓存（必须在删除关联记录之前）
+        clearCacheForResourceUsers(id);
+        // 清理角色-资源关联记录，防止orphan
+        rolePermissionMapper.delete(new EntityWrapper<SysRoleResource>().eq("pid", id));
         this.deleteById(id);
         shiroService.reloadPerms();
     }
@@ -118,5 +135,28 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
             }
         }
         return resource;
+    }
+
+    /**
+     * 查找引用指定资源的所有角色对应的用户，清除其授权缓存
+     */
+    private void clearCacheForResourceUsers(String resourceId) {
+        List<SysRoleResource> roleResources = rolePermissionMapper.selectList(
+                new EntityWrapper<SysRoleResource>().eq("pid", resourceId));
+        if (roleResources == null || roleResources.isEmpty()) {
+            return;
+        }
+        Set<String> roleIds = roleResources.stream()
+                .map(SysRoleResource::getRid).collect(Collectors.toSet());
+        List<SysUserRole> userRoles = userRoleService.selectList(
+                new EntityWrapper<SysUserRole>().in("rid", roleIds));
+        if (userRoles == null || userRoles.isEmpty()) {
+            return;
+        }
+        List<String> userIds = userRoles.stream()
+                .map(SysUserRole::getUid).distinct().collect(Collectors.toList());
+        if (!userIds.isEmpty()) {
+            shiroService.clearAuthByUserIdCollection(userIds, true, false);
+        }
     }
 }

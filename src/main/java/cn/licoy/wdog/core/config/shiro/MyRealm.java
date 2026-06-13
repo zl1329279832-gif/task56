@@ -41,6 +41,16 @@ public class MyRealm extends AuthorizingRealm {
         return token instanceof JwtToken;
     }
 
+    /**
+     * 使用用户ID作为授权缓存的key，确保clearAuthByUserId能正确匹配并清除缓存
+     */
+    @Override
+    protected Object getAuthorizationCacheKey(PrincipalCollection principals) {
+        JwtToken jwtToken = new JwtToken();
+        BeanUtils.copyProperties(principals.getPrimaryPrincipal(), jwtToken);
+        return jwtToken.getUid();
+    }
+
     @Override
     protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principalCollection) {
         log.info("Shiro权限验证执行");
