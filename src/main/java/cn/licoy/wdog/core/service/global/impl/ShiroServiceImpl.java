@@ -115,14 +115,14 @@ public class ShiroServiceImpl implements ShiroService {
     }
 
     @Override
-    public void clearAuthByUserId(String uid,Boolean author, Boolean out){
+    public void clearAuthByUserId(String username,Boolean author, Boolean out){
         MyRealm myRealm = SpringUtils.getBean(MyRealm.class);
-        myRealm.clearAuthByUserId(uid,author,out);
+        myRealm.clearAuthByUserId(username,author,out);
     }
 
     @Override
-    public void clearAuthByUserIdCollection(List<String> userList, Boolean author, Boolean out) {
+    public void clearAuthByUserIdCollection(List<String> usernameList, Boolean author, Boolean out) {
         MyRealm myRealm = SpringUtils.getBean(MyRealm.class);
-        myRealm.clearAuthByUserIdCollection(userList,author,out);
+        myRealm.clearAuthByUserIdCollection(usernameList,author,out);
     }
 }

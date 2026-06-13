@@ -211,7 +211,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper,SysUser> imple
             /*if(status==0){
 
             }*/
-            shiroService.clearAuthByUserId(userId,true,true);
+            shiroService.clearAuthByUserId(user.getUsername(),true,true);
         }catch (Exception e){
             throw RequestException.fail("操作失败",e);
         }
@@ -230,7 +230,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper,SysUser> imple
         }
         try {
             this.deleteById(userId);
-            shiroService.clearAuthByUserId(userId,true,true);
+            shiroService.clearAuthByUserId(user.getUsername(),true,true);
         }catch (Exception e){
             throw RequestException.fail("删除失败",e);
         }
@@ -272,7 +272,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper,SysUser> imple
         try {
             this.updateById(user);
             this.updateUserRole(user);
-            shiroService.clearAuthByUserId(user.getId(),true,false);
+            shiroService.clearAuthByUserId(user.getUsername(),true,false);
         }catch (RequestException e){
             throw RequestException.fail(e.getMsg(),e);
         }catch (Exception e){
@@ -304,7 +304,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper,SysUser> imple
         user.setPassword(password);
         try {
             this.updateById(user);
-            shiroService.clearAuthByUserId(user.getId(),true,true);
+            shiroService.clearAuthByUserId(user.getUsername(),true,true);
         }catch (Exception e){
             throw RequestException.fail(String.format("ID为 %s 的用户密码重置失败",resetPasswordDTO.getUid()),e);
         }

@@ -1,7 +1,6 @@
 package cn.licoy.wdog.common.util;
 
-import sun.misc.BASE64Decoder;
-import sun.misc.BASE64Encoder;
+import java.util.Base64;
 
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
@@ -53,7 +52,7 @@ public class Encrypt {
             e.printStackTrace();
         }
         if (b != null) {
-            s = new BASE64Encoder().encode(b);
+            s = Base64.getEncoder().encodeToString(b);
         }
         return s;
     }
@@ -65,9 +64,8 @@ public class Encrypt {
         byte[] b = null;
         String result = null;
         if (s != null) {
-            BASE64Decoder decoder = new BASE64Decoder();
             try {
-                b = decoder.decodeBuffer(s);
+                b = Base64.getDecoder().decode(s);
                 result = new String(b, "utf-8");
             } catch (Exception e) {
                 e.printStackTrace();

@@ -21,14 +21,14 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -268,6 +268,11 @@ public class RolePermissionChangeServiceTest {
         when(userRoleService.selectList(any(EntityWrapper.class)))
                 .thenReturn(Arrays.asList(ur1));
 
+        // 模拟 userService 返回用户信息（findAffectedUsers 需要）
+        SysUser u1 = SysUser.builder().id("user-1").username("alice").build();
+        when(userService.selectBatchIds(Collections.singletonList("user-1")))
+                .thenReturn(Collections.singletonList(u1));
+
         CacheRefreshResultVO result = service.applyChange(ROLE_ID, newResourcesInput);
 
         assertNotNull(result);
@@ -290,9 +295,9 @@ public class RolePermissionChangeServiceTest {
         // 验证 Shiro 过滤链重载
         verify(shiroService).reloadPerms();
 
-        // 验证用户缓存清除
+        // 验证用户缓存清除（使用 username 而非 userId）
         verify(shiroService).clearAuthByUserIdCollection(
-                eq(Collections.singletonList("user-1")), eq(true), eq(false));
+                eq(Collections.singletonList("alice")), eq(true), eq(false));
     }
 
     @Test

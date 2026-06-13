@@ -16,7 +16,7 @@ import org.apache.shiro.cache.Cache;
 import org.apache.shiro.cache.CacheManager;
 import org.apache.shiro.realm.AuthorizingRealm;
 import org.apache.shiro.subject.PrincipalCollection;
-import org.crazycake.shiro.RedisSessionDAO;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -93,16 +93,39 @@ public class MyRealm extends AuthorizingRealm {
         return new SimpleAuthenticationInfo(token,user.getPassword(),user.getId());
     }
 
-    public void clearAuthByUserId(String uid,Boolean author, Boolean out){
-        //获取所有session
-        Cache<Object, Object> cache = cacheManager
-                .getCache(MyRealm.class.getName()+".authorizationCache");
-        cache.remove(uid);
+    /**
+     * 覆盖授权缓存的 key 策略：使用 username 作为缓存 key。
+     * 默认实现使用整个 principal（JwtToken 对象）作为 key，
+     * 导致 cache.remove(uid/username) 无法匹配到正确的缓存条目。
+     */
+    @Override
+    protected Object getAuthorizationCacheKey(PrincipalCollection principals) {
+        JwtToken jwtToken = new JwtToken();
+        BeanUtils.copyProperties(principals.getPrimaryPrincipal(), jwtToken);
+        return jwtToken.getUsername();
     }
 
-    public void clearAuthByUserIdCollection(List<String> userList,Boolean author, Boolean out){
+    /**
+     * 清除指定用户的授权缓存
+     * @param username 用户名（缓存 key）
+     * @param author 是否清空授权信息
+     * @param out 是否清空session
+     */
+    public void clearAuthByUserId(String username,Boolean author, Boolean out){
         Cache<Object, Object> cache = cacheManager
                 .getCache(MyRealm.class.getName()+".authorizationCache");
-        userList.forEach(cache::remove);
+        cache.remove(username);
+    }
+
+    /**
+     * 批量清除指定用户的授权缓存
+     * @param usernameList 用户名列表（缓存 key）
+     * @param author 是否清空授权信息
+     * @param out 是否清空session
+     */
+    public void clearAuthByUserIdCollection(List<String> usernameList,Boolean author, Boolean out){
+        Cache<Object, Object> cache = cacheManager
+                .getCache(MyRealm.class.getName()+".authorizationCache");
+        usernameList.forEach(cache::remove);
     }
 }

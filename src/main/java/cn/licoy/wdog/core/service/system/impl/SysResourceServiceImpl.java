@@ -4,9 +4,11 @@ import cn.licoy.wdog.common.bean.ResponseCode;
 import cn.licoy.wdog.common.exception.RequestException;
 import cn.licoy.wdog.core.dto.system.resource.ResourceDTO;
 import cn.licoy.wdog.core.entity.system.SysResource;
+import cn.licoy.wdog.core.entity.system.SysUser;
 import cn.licoy.wdog.core.mapper.system.SysResourceMapper;
 import cn.licoy.wdog.core.service.global.ShiroService;
 import cn.licoy.wdog.core.service.system.SysResourceService;
+import cn.licoy.wdog.core.service.system.SysUserService;
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.baomidou.mybatisplus.service.impl.ServiceImpl;
 import org.springframework.beans.BeanUtils;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author Licoy
@@ -31,6 +34,9 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
 
     @Autowired
     private ShiroService shiroService;
+
+    @Autowired
+    private SysUserService userService;
 
     @Override
     public List<SysResource> list() {
@@ -53,6 +59,7 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
         resource.setCreateDate(new Date());
         this.insert(resource);
         shiroService.reloadPerms();
+        clearAllUserAuthCache();
     }
 
     @Override
@@ -63,6 +70,7 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
         BeanUtils.copyProperties(dto,resource);
         this.updateById(resource);
         shiroService.reloadPerms();
+        clearAllUserAuthCache();
     }
 
     @Override
@@ -73,6 +81,22 @@ public class SysResourceServiceImpl extends ServiceImpl<SysResourceMapper,SysRes
             throw RequestException.fail("删除失败，不存在ID为"+id+"的资源");
         this.deleteById(id);
         shiroService.reloadPerms();
+        clearAllUserAuthCache();
+    }
+
+    /**
+     * 清除所有用户的授权缓存。
+     * 资源的增删改会改变权限-URL 映射，任何用户的权限都可能受影响，
+     * 因此需要全量清除，确保下次鉴权时从数据库重新加载。
+     */
+    private void clearAllUserAuthCache(){
+        List<SysUser> allUsers = userService.selectList(null);
+        if(allUsers!=null && !allUsers.isEmpty()){
+            List<String> usernames = allUsers.stream()
+                    .map(SysUser::getUsername)
+                    .collect(Collectors.toList());
+            shiroService.clearAuthByUserIdCollection(usernames, true, false);
+        }
     }
 
     public void findAllChild(SysResource resource){

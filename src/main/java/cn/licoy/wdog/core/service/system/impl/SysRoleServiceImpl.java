@@ -11,6 +11,7 @@ import cn.licoy.wdog.core.service.global.ShiroService;
 import cn.licoy.wdog.core.service.system.SysRoleResourceService;
 import cn.licoy.wdog.core.service.system.SysRoleService;
 import cn.licoy.wdog.core.service.system.SysUserRoleService;
+import cn.licoy.wdog.core.service.system.SysUserService;
 import com.baomidou.mybatisplus.mapper.EntityWrapper;
 import com.baomidou.mybatisplus.plugins.Page;
 import com.baomidou.mybatisplus.service.impl.ServiceImpl;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -33,6 +35,9 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper,SysRole> imple
 
     @Autowired
     private SysUserRoleService userRoleService;
+
+    @Autowired
+    private SysUserService userService;
 
     @Autowired
     private ShiroService shiroService;
@@ -75,6 +80,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper,SysRole> imple
         if(role==null) throw RequestException.fail("角色不存在！");
         try {
             this.deleteById(rid);
+            shiroService.reloadPerms();
             this.updateCache(role,true,false);
         }catch (DataIntegrityViolationException e){
             throw RequestException.fail(
@@ -99,6 +105,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper,SysRole> imple
                         .rid(role.getId())
                         .build());
             }
+            // 重载 Shiro 过滤链（资源-URL 映射可能已变更）
+            shiroService.reloadPerms();
             this.updateCache(role,true,false);
         }catch (Exception e){
             throw RequestException.fail("角色更新失败！",e);
@@ -131,12 +139,19 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper,SysRole> imple
     @Override
     public void updateCache(SysRole role,Boolean author, Boolean out) {
         List<SysUserRole> sysUserRoles = userRoleService.selectList(new EntityWrapper<SysUserRole>()
-                .eq("rid", role.getId())
-                .groupBy("uid"));
-        List<String> userIdList = new ArrayList<>();
-        if(sysUserRoles!=null && sysUserRoles.size()>0){
-            sysUserRoles.forEach(v-> userIdList.add(v.getUid()));
+                .eq("rid", role.getId()));
+        if(sysUserRoles==null || sysUserRoles.isEmpty()){
+            return;
         }
-        shiroService.clearAuthByUserIdCollection(userIdList,author,out);
+        // 提取去重的用户ID，再批量查询用户名作为缓存 key
+        List<String> userIds = sysUserRoles.stream()
+                .map(SysUserRole::getUid).distinct().collect(Collectors.toList());
+        List<SysUser> users = userService.selectBatchIds(userIds);
+        if(users==null || users.isEmpty()){
+            return;
+        }
+        List<String> usernames = users.stream()
+                .map(SysUser::getUsername).collect(Collectors.toList());
+        shiroService.clearAuthByUserIdCollection(usernames,author,out);
     }
 }

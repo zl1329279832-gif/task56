@@ -158,13 +158,18 @@ public class RolePermissionChangeServiceImpl implements RolePermissionChangeServ
         // 5. 重载 Shiro 过滤链
         shiroService.reloadPerms();
 
-        // 6. 清除受影响用户的权限缓存
-        List<String> userIds = findAffectedUserIds(roleId);
-        if (!userIds.isEmpty()) {
-            shiroService.clearAuthByUserIdCollection(userIds, true, false);
+        // 6. 清除受影响用户的权限缓存（使用 username 作为缓存 key）
+        List<UserBriefVO> affectedUsers = findAffectedUsers(roleId);
+        List<String> usernames = new ArrayList<>();
+        if (!affectedUsers.isEmpty()) {
+            usernames = affectedUsers.stream()
+                    .map(UserBriefVO::getUsername)
+                    .collect(Collectors.toList());
+            shiroService.clearAuthByUserIdCollection(usernames, true, false);
         }
 
         // 7. 记录并返回刷新结果
+        List<String> userIds = findAffectedUserIds(roleId);
         CacheRefreshResultVO result = CacheRefreshResultVO.builder()
                 .roleId(roleId)
                 .roleName(role.getName())
